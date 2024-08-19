@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #timer {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 1em;
+        }
+
+        #exercise {
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Workout Timer</h1>
+        <div id="exercise">Exercise: --</div>
+        <div id="timer">00:00:00</div>
+        <button id="start-btn">Start</button>
+        <button id="rest-btn" disabled>Rest</button>
+        <button id="stop-btn" disabled>Stop</button>
+        <button id="reset-btn">Reset</button>
+        <button id="resume-btn" disabled>Resume</button>
+        <div id="best-time">Best Time: --:--:--</div>
+    </div>
+
+    <script>
+        const exercises = [
+            "Push-ups",
+            "Squats",
+            "Lunges",
+            "Burpees",
+            "Plank",
+            "Jumping Jacks",
+            "Mountain Climbers",
+            "High Knees",
+            "Sit-ups",
+            "Leg Raises"
+        ];
+
+        let timerInterval;
+        let exerciseChangeInterval;
+        let elapsedTime = 0;
+        let isRunning = false;
+        let startTime = 0;
+        let lastExerciseChangeTime = 0;
+
+        function formatTime(ms) {
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+            return [hours, minutes, seconds]
+                .map(v => v.toString().padStart(2, '0'))
+                .join(':');
+        }
+
+        function updateTimer() {
+            const now = new Date().getTime();
+            elapsedTime = now - startTime;
+            document.getElementById('timer').innerText = formatTime(elapsedTime);
+            
+            // Change exercise every 60 seconds
+            if (elapsedTime - lastExerciseChangeTime >= 60000) {
+                setRandomExercise();
+                lastExerciseChangeTime = elapsedTime;
+            }
+        }
+
+        function startTimer() {
+            if (!isRunning) {
+                startTime = new Date().getTime() - elapsedTime;
+                timerInterval = setInterval(updateTimer, 1000);
+                exerciseChangeInterval = setInterval(() => {
+                    if (isRunning) setRandomExercise();
+                }, 60000);
+                isRunning = true;
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('rest-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = false;
+                document.getElementById('resume-btn').disabled = true;
+                setRandomExercise();
+                lastExerciseChangeTime = 0;
+            }
+        }
+
+        function restTimer() {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                clearInterval(exerciseChangeInterval);
+                isRunning = false;
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('rest-btn').disabled = true;
+                document.getElementById('resume-btn').disabled = false;
+            }
+        }
+
+        function resumeTimer() {
+            if (!isRunning) {
+                startTime = new Date().getTime() - elapsedTime;
+                timerInterval = setInterval(updateTimer, 1000);
+                exerciseChangeInterval = setInterval(() => {
+                    if (isRunning) setRandomExercise();
+                }, 60000);
+                isRunning = true;
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('rest-btn').disabled = false;
+                document.getElementById('resume-btn').disabled = true;
+            }
+        }
+
+        function stopTimer() {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                clearInterval(exerciseChangeInterval);
+                isRunning = false;
+                saveBestTime();
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('rest-btn').disabled = true;
+                document.getElementById('stop-btn').disabled = true;
+                document.getElementById('resume-btn').disabled = true;
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            clearInterval(exerciseChangeInterval);
+            isRunning = false;
+            elapsedTime = 0;
+            document.getElementById('timer').innerText = formatTime(elapsedTime);
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('rest-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = true;
+            document.getElementById('resume-btn').disabled = true;
+            saveBestTime();
+            document.getElementById('exercise').innerText = "Exercise: --";
+        }
+
+        function setRandomExercise() {
+            const randomIndex = Math.floor(Math.random() * exercises.length);
+            const exercise = exercises[randomIndex];
+            document.getElementById('exercise').innerText = `Exercise: ${exercise}`;
+        }
+
+        function saveBestTime() {
+            const bestTime = getBestTime();
+            if (elapsedTime > bestTime) {
+                document.cookie = `bestTime=${elapsedTime}; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+            }
+            document.getElementById('best-time').innerText = `Best Time: ${formatTime(getBestTime())}`;
+        }
+
+        function getBestTime() {
+            const name = 'bestTime=';
+            const decodedCookie = decodeURIComponent(document.cookie);
+            const cookies = decodedCookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i];
+                while (cookie.charAt(0) === ' ') {
+                    cookie = cookie.substring(1);
+                }
+                if (cookie.indexOf(name) === 0) {
+                    return parseInt(cookie.substring(name.length), 10);
+                }
+            }
+            return 0;
+        }
+
+        // Event Listeners
+        document.getElementById('start-btn').addEventListener('click', startTimer);
+        document.getElementById('rest-btn').addEventListener('click', restTimer);
+        document.getElementById('resume-btn').addEventListener('click', resumeTimer);
+        document.getElementById('stop-btn').addEventListener('click', stopTimer);
+        document.getElementById('reset-btn').addEventListener('click', resetTimer);
+
+        // Initialize best time display
+        document.getElementById('best-time').innerText = `Best Time: ${formatTime(getBestTime())}`;
+    </script>
+</body>
+</html>
